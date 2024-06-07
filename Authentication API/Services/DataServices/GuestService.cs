@@ -19,5 +19,13 @@ namespace Authentication_API.Services.DataServices
             await _collection.InsertOneAsync(model);
             return model;
         }
+
+        public async Task<Guest> GetByNumber(string number)
+        {
+            var filter = Builders<Guest>.Filter.Eq(g => g.Number, number);
+            Guest result = await _collection.Find(filter).FirstOrDefaultAsync();
+            return result;
+        }
+
     }
 }

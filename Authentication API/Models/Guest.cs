@@ -35,5 +35,15 @@ namespace Authentication_API.Models
             this.PasswordSalt = Convert.ToBase64String(hmac.Key);
             this.PasswordHash = Convert.ToBase64String(hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password)));
         }
+
+        public bool VerifyPasswordHash(string password)
+        {
+            byte[] passwordHashBytes = Convert.FromBase64String(this.PasswordHash);
+            byte[] passwordSaltBytes = Convert.FromBase64String(this.PasswordSalt);
+
+            using var hmac = new HMACSHA512(passwordSaltBytes);
+            var computedHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
+            return computedHash.SequenceEqual(passwordHashBytes);
+        }
     }
 }

@@ -9,7 +9,7 @@ namespace Authentication_API.AppMapping
     {
         public AppMappingService()
         {
-            CreateMap<Guest, GuestDto>().ReverseMap();
+            //CreateMap<Guest, GuestDto>().ReverseMap();
             CreateMap<Guest, RegisterDto>().ReverseMap();
         }
     }
