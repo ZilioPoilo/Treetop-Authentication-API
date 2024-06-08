@@ -20,9 +20,16 @@ namespace Authentication_API.Services.DataServices
             return model;
         }
 
-        public async Task<Guest> GetByNumber(string number)
+        public async Task<Guest> GetByNumberAsync(string number)
         {
             var filter = Builders<Guest>.Filter.Eq(g => g.Number, number);
+            Guest result = await _collection.Find(filter).FirstOrDefaultAsync();
+            return result;
+        }
+
+        public async Task<Guest> GetByIdAsync(string id)
+        {
+            var filter = Builders<Guest>.Filter.Eq(g => g.Id, id);
             Guest result = await _collection.Find(filter).FirstOrDefaultAsync();
             return result;
         }

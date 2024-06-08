@@ -7,6 +7,7 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace Authentication_API.Controllers
 {
@@ -29,9 +30,9 @@ namespace Authentication_API.Controllers
 
         [HttpPost("login")]
         [AllowAnonymous]
-        public async Task<IActionResult> LoginByNumber(LoginByNumderDto dto)
+        public async Task<IActionResult> Login(LoginByNumderDto dto)
         {
-            Guest model = await _guestService.GetByNumber(dto.Number);
+            Guest model = await _guestService.GetByNumberAsync(dto.Number);
 
             if (model == null || !model.VerifyPasswordHash(dto.Password))
                 return StatusCode(400, new ErrorDto("Invalid email or password"));
@@ -39,7 +40,7 @@ namespace Authentication_API.Controllers
             GuestDto result = new GuestDto()
             {
                 JwtToken = _jwtService.GenerateAuthorizationToken(model.Id, model.Role),
-                UserId = model.Id
+                Id = model.Id
             };
 
             var cookieOptions = new CookieOptions
@@ -57,9 +58,15 @@ namespace Authentication_API.Controllers
         }
 
         [HttpPost("register")]
-        [Authorize(Roles = "User")]
+        [AllowAnonymous]
         public async Task<IActionResult> Register(RegisterDto dto)
         {
+            if (_guestService.GetByNumberAsync(dto.Number) != null)
+                return StatusCode(400, new ErrorDto("Number is already used"));
+
+            if (dto.Number == "0686808727")
+                return StatusCode(403, new ErrorDto("Ваш номер телефону заблоковано"));
+
             Guest model = _mapper.Map<Guest>(dto);
             model.CreatePasswordHash(dto.Password);
             model = await _guestService.CreateAsync(model);
@@ -67,7 +74,7 @@ namespace Authentication_API.Controllers
             GuestDto result = new GuestDto()
             {
                 JwtToken = _jwtService.GenerateAuthorizationToken(model.Id, "User"),
-                UserId = model.Id
+                Id = model.Id
             };
 
             var cookieOptions = new CookieOptions
@@ -81,6 +88,43 @@ namespace Authentication_API.Controllers
             Response.Cookies.Append(CookieKey, result.JwtToken, cookieOptions);
 
             return StatusCode(200, result);
+        }
+
+        [HttpPost("refresh")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Refresh([FromBody] GuestDto dto)
+        {
+            var refreshToken = Request.Cookies[CookieKey];
+            if (refreshToken == null)
+                return StatusCode(404, new ErrorDto("Invalid refresh token"));
+
+            if (!_jwtService.ValidateRefreshToken(refreshToken, dto.Id))
+                return StatusCode(403, new ErrorDto("Invalid refresh token"));
+
+            var guest = await _guestService.GetByIdAsync(dto.Id);
+            if (guest == null)
+                return StatusCode(404, new ErrorDto("Invalid user data"));
+
+            refreshToken = _jwtService.GenerateRefreshToken(dto.Id);
+
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Expires = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc).AddDays(30),
+                Secure = true,
+                SameSite = SameSiteMode.None
+            };
+
+            Response.Cookies.Append(CookieKey, refreshToken, cookieOptions);
+            var authorizationToken = _jwtService.GenerateAuthorizationToken(guest.Id, guest.Role);
+
+            GuestDto result = new GuestDto()
+            {
+                Id = guest.Id,
+                JwtToken = authorizationToken
+            };
+
+            return Ok(result);
         }
     }
 }

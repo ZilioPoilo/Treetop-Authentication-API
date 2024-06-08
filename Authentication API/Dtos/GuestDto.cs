@@ -8,6 +8,6 @@ namespace Authentication_API.Dtos
         public string JwtToken { get; set; } = null!;
 
         [Required]
-        public string UserId { get; set; } = null!;
+        public string Id { get; set; } = null!;
     }
 }
